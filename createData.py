@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+#Need to add realism to this for customers growing over time, percentage of customers that are more likely to order again etc...
+
 def random_sheet(name):
     #make a quick random date selector
     dates= []
