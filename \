@@ -1,0 +1,39 @@
+import time
+import pandas as pd
+from tkinter import Tk
+from tkinter.filedialog import askopenfilename
+
+def print_message(message, message_type=0, location=0):
+    # 0 - regular, 1 - warning, 2 - missing
+    types= ["[ ] - ","[!] - ","      "]
+    # location 0 - console , 1 - logs, 2 - both
+    print(types[message_type] + message)
+
+def get_files():
+    Tk().withdraw()
+    return askopenfilename()
+    
+def run():
+    # allow user to keep getting files
+    filename = "blank"
+    files_list = []
+    while filename:
+        filename=get_files()
+        if filename:
+            files_list.append(filename)
+    if not files_list:
+       print_message("No files selected.. exiting",)
+       return
+    #load in the data
+    print_message("loading the following files:",0,1)
+    frames = []
+    for i in files_list:
+        print_message(i,2,1)
+        frames.append(pd.read_csv(i))
+    df = pd.concat(frames)
+    print_message(df.loc[df['CustomerNumber'] == 1000],0,0)
+
+
+start_time = time.time()
+run()
+print("%s seconds" % (time.time() - start_time))
