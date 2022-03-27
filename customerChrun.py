@@ -37,17 +37,17 @@ def display_time(seconds, granularity=2):
     return ', '.join(result[:granularity])
 
 def print_message(message, message_type=0, location=0):
+    # todo: setup logging with python log
     # 0 - regular, 1 - warning, 2 - missing
     types= ["[ ] - ","[!] - ","      "]
     # location 0 - console , 1 - logs, 2 - both
     print(types[message_type] + message)
 
 def get_files():
+    # quick gui file selector
     Tk().withdraw()
     return askopenfilename()
 
-def export_to_csv(excel):
-    excel.to_csv('customer_churn.csv', sep=",")
 
 def calculate(df):
     #fix the data
@@ -62,48 +62,47 @@ def calculate(df):
     column_names = ["month","returning_customers","lost_customers","gained_customers","total_customers"]
     churn_data = pd.DataFrame(columns = column_names)
     #go through monthly and figure out the stuff...
+    new_row = {'month':"", 'returning_customers':0,'gained_customers':0,'lost_customers':0,'total_customers':0}
     for month in range(0,number_of_months + 1):
         print_message("Starting month number " +str(month),0,0)
         # set the start and end of a month
         previous_month_start =pd.to_datetime(start_date + pd.DateOffset(months=month-1))
         current_month_start =pd.to_datetime(start_date + pd.DateOffset(months=month))
-        current_month_end =pd.to_datetime(start_date + pd.DateOffset(months=month+1))
+        next_month_start =pd.to_datetime(start_date + pd.DateOffset(months=month+1))
+        print("Previous month start: " + str(previous_month_start))
+        print("Current month start: " + str(current_month_start))
+        print("Next month start: " + str(next_month_start))
         #only look at customers that purchase last month or this month
-        unique_customers=df.loc[(df[purchase_date] >= previous_month_start) & (df[purchase_date] <= current_month_end)][customer_number].unique().tolist()
-        total_customer_count = len(unique_customers)
+        unique_customers=df.loc[(df[purchase_date] >= previous_month_start) & (df[purchase_date] < next_month_start)][customer_number].unique().tolist()
         #add the new month to the df
-        new_row = {'month':current_month_start, 'returning_customers':0,'gained_customers':0,'lost_customers':0,'total_customers':0}
+        new_row = {'month':current_month_start, 'returning_customers':0,'gained_customers':0,'lost_customers':0,'total_customers':new_row['total_customers']}
         for customer in tqdm(unique_customers):
-            check_customer(customer,new_row,df,previous_month_start,current_month_start,current_month_end)
+            check_customer(customer,new_row,df,previous_month_start,current_month_start,next_month_start)
+        new_row['total_customers']=new_row['total_customers'] + new_row["gained_customers"]
         churn_data = churn_data.append(new_row, ignore_index=True)
         print (churn_data.iloc[-1])
     return churn_data
-def check_customer(customer,new_row,df,previous_month_start,current_month_start,current_month_end):
+
+def check_customer(customer,new_row,df,previous_month_start,current_month_start,next_month_start):
     #get current customer 
     customer_data = df.loc[df[customer_number] == customer]
     #check for any purchases and record for this month
-    purchase_this = customer_data.loc[(customer_data[purchase_date] >= current_month_start) & (customer_data[purchase_date] < current_month_end)]
+    purchase_this = customer_data.loc[(customer_data[purchase_date] >= current_month_start) & (customer_data[purchase_date] < next_month_start)]
     purchase_this_month = not purchase_this.empty
     #check for any purchases and record before this month
     purchase_prior = customer_data.loc[(customer_data[purchase_date] < current_month_start)]
     purchase_prior_month = not purchase_prior.empty
     #check for any purchases and record after this month
-    purchase_future = customer_data.loc[(customer_data[purchase_date] >= current_month_end)]
+    purchase_future = customer_data.loc[(customer_data[purchase_date] >= next_month_start)]
     purchase_future_month = not purchase_future.empty
-    #check if we lost the customer this month - ie last month was the last purchase record
-    if not purchase_future_month:
-        last_month_customer = not customer_data.loc[(customer_data[purchase_date] >= previous_month_start) & (customer_data[purchase_date] < current_month_start)].empty
-    else:
-        last_month_customer = False
     #set the values in the dataframe
-    if purchase_prior_month and purchase_this_month:
-        new_row["returning_customers"] = new_row["returning_customers"] + 1
-    if not purchase_prior_month and purchase_this_month:
+    if purchase_prior_month:
+        if purchase_this_month:
+            new_row["returning_customers"] = new_row["returning_customers"] + 1
+        elif not purchase_future_month:
+            new_row["lost_customers"] = new_row["lost_customers"] + 1
+    elif purchase_this_month:
         new_row["gained_customers"] = new_row["gained_customers"] + 1
-    if last_month_customer and not purchase_this_month and not purchase_future_month:
-        new_row["lost_customers"] = new_row["lost_customers"] + 1
-    if purchase_prior_month or purchase_this_month:
-        new_row["total_customers"] = new_row["total_customers"] + 1
 
 def setup(args):
     # allow user to keep getting files
@@ -128,8 +127,9 @@ def setup(args):
 def run(args):
     df = setup(args)
     excel=calculate(df)
-    export_to_csv(excel)
+    excel.to_csv('customer_churn.csv', sep=",")
 
+#dirty start, reorganize for better code
 parser = argparse.ArgumentParser(description='Customer Chrun rate')
 parser.add_argument('-t','--test', help='test case instead of manual file selection', action='store_true')
 args = vars(parser.parse_args())
@@ -137,4 +137,5 @@ args = vars(parser.parse_args())
 start_time = time.time()
 run(args)
 x=display_time(time.time() -start_time,5)
+# we are done - show the time in calculation
 print ("time: "+ x)
