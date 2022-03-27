@@ -126,6 +126,8 @@ def setup(args):
 
 def run(args):
     df = setup(args)
+    #how much memory are we using?
+    df.info(memory_usage="deep")
     excel=calculate(df)
     excel.to_csv('customer_churn.csv', sep=",")
 

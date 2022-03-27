@@ -23,6 +23,6 @@ def random_sheet(name):
     # export the dataframe to csv using comma delimiting
     df.to_csv('random'+name+'.csv', sep=",")
 
-num_sheets=5
+num_sheets=10
 for i in range(0,num_sheets):
     random_sheet(str(i))
